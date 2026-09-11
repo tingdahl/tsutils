@@ -139,14 +139,12 @@ export class PageManager {
         if (parentElement) {
             for (const child of Array.from(parentElement.children)) {
                 const htmlChild = child as HTMLElement;
-                if (htmlChild.classList.contains('modal-overlay') || htmlChild.classList.contains('confirm-modal-overlay')) {
+                if (!this.panels.has(htmlChild.id) && htmlChild.id !== id) {
                     continue;
                 }
-                if (htmlChild.id === id) {
-                    htmlChild.style.display = 'block';
-                } else {
-                    htmlChild.style.display = 'none';
-                }
+                const isCurrent = htmlChild.id === id;
+                htmlChild.hidden = !isCurrent;
+                htmlChild.style.display = isCurrent ? 'block' : 'none';
             }
         } else {
             console.error(`PageManager: Could not find parent element with ID ${this.parentElementId}`);
