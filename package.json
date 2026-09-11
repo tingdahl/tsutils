@@ -1,0 +1,55 @@
+{
+  "name": "@tingdahl/tsutils",
+  "version": "0.1.0",
+  "description": "Generic, product-agnostic TypeScript utilities for web applications",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    },
+    "./cache": {
+      "types": "./dist/cache/index.d.ts",
+      "import": "./dist/cache/index.js"
+    },
+    "./proto": {
+      "types": "./dist/proto/index.d.ts",
+      "import": "./dist/proto/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui/index.d.ts",
+      "import": "./dist/ui/index.js"
+    },
+    "./zip": {
+      "types": "./dist/zip/index.d.ts",
+      "import": "./dist/zip/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepack": "npm run build"
+  },
+  "keywords": [
+    "typescript",
+    "utilities",
+    "cache",
+    "protobuf",
+    "spa",
+    "zip"
+  ],
+  "author": "Kristofer Tingdahl",
+  "license": "ISC",
+  "devDependencies": {
+    "@types/node": "^26.3.0",
+    "jsdom": "^30.0.1",
+    "typescript": "^5.4.0",
+    "vitest": "^4.1.11"
+  }
+}
