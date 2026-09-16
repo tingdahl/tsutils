@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { setupProtoLogging, resetProtoLoggingForTest } from './proto_logger.js';
+import { setupProtoLogging, resetProtoLoggingForTest, isLong, formatLong, formatForLogging } from './proto_logger.js';
 
 describe('proto_logger', () => {
     beforeEach(() => {
@@ -63,6 +63,53 @@ describe('proto_logger', () => {
             expect.any(String),
             expect.any(String),
             expect.any(String)
+        );
+    });
+
+    it('formats int64 Long objects into a single numeric value in console logs', () => {
+        const consoleLogSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+        vi.spyOn(console, 'groupCollapsed').mockImplementation(() => {});
+        vi.spyOn(console, 'groupEnd').mockImplementation(() => {});
+
+        const fakeLong = {
+            low: 12345,
+            high: 0,
+            unsigned: false,
+            toNumber() { return 12345; },
+            toString() { return '12345'; }
+        };
+
+        expect(isLong(fakeLong)).toBe(true);
+        expect(formatLong(fakeLong)).toBe(12345);
+
+        class MessageWithLong {
+            id: any;
+            items: any[];
+            constructor() {
+                this.id = fakeLong;
+                this.items = [{ subId: fakeLong }];
+            }
+            static decode() {
+                return new MessageWithLong();
+            }
+            static encode(msg: any) {
+                return { finish() { return new Uint8Array([1]); } };
+            }
+        }
+
+        setupProtoLogging({ test: { MessageWithLong } }, { forceEnable: true });
+        const decoded = MessageWithLong.decode();
+
+        // The returned instance should preserve the original Long for application code
+        expect(decoded.id).toBe(fakeLong);
+
+        // But the logged object should format the Long as a single numeric value
+        expect(consoleLogSpy).toHaveBeenCalledWith(
+            'Decoded Message Object:',
+            expect.objectContaining({
+                id: 12345,
+                items: [{ subId: 12345 }]
+            })
         );
     });
 });

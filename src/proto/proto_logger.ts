@@ -8,6 +8,52 @@ export interface ProtoLoggingOptions {
 let loggingInitialized = false;
 
 /**
+ * Checks if a value is a 64-bit integer Long instance (e.g. from long.js/protobufjs).
+ */
+export function isLong(val: any): boolean {
+    return Boolean(
+        val &&
+        typeof val === 'object' &&
+        (val.__isLong__ === true ||
+            (typeof val.low === 'number' && typeof val.high === 'number' && typeof val.unsigned === 'boolean'))
+    );
+}
+
+/**
+ * Converts a 64-bit integer Long instance to a single numeric value.
+ */
+export function formatLong(val: any): number {
+    if (typeof val.toNumber === 'function') {
+        return val.toNumber();
+    }
+    return Number(val.toString ? val.toString() : val);
+}
+
+/**
+ * Formats a protobuf message or object for console logging, converting
+ * multi-part int64 Long instances into single numeric values.
+ */
+export function formatForLogging(val: any, seen: WeakSet<object> = new WeakSet()): any {
+    if (val === null || val === undefined) return val;
+    if (isLong(val)) return formatLong(val);
+    if (typeof val !== 'object') return val;
+    if (val instanceof Uint8Array || ArrayBuffer.isView(val) || val instanceof ArrayBuffer) return val;
+
+    if (seen.has(val)) return '[Circular]';
+    seen.add(val);
+
+    if (Array.isArray(val)) {
+        return val.map((item) => formatForLogging(item, seen));
+    }
+
+    const result: Record<string, any> = {};
+    for (const [key, value] of Object.entries(val)) {
+        result[key] = formatForLogging(value, seen);
+    }
+    return result;
+}
+
+/**
  * Traverses a protobuf namespace or object tree and attaches decode/encode interceptors
  * that log formatted messages to the browser console.
  */
@@ -84,7 +130,7 @@ export function wrapMessageClass(className: string, messageClass: any): void {
                 "color: #1e293b; font-weight: bold;",
                 "color: #64748b; font-weight: normal; font-style: italic;"
             );
-            console.log("Decoded Message Object:", decoded);
+            console.log("Decoded Message Object:", formatForLogging(decoded));
             if (typeof console.trace === 'function') {
                 console.trace("Decode Stack Trace");
             }
@@ -114,7 +160,7 @@ export function wrapMessageClass(className: string, messageClass: any): void {
                         "color: #1e293b; font-weight: bold;",
                         "color: #64748b; font-weight: normal; font-style: italic;"
                     );
-                    console.log("Message to Encode:", message);
+                    console.log("Message to Encode:", formatForLogging(message));
                     if (typeof console.trace === 'function') {
                         console.trace("Encode Stack Trace");
                     }
