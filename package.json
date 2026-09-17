@@ -38,7 +38,8 @@
     "build": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prepack": "npm run build"
+    "prepack": "npm run build",
+    "prepare": "npx -y -p typescript tsc"
   },
   "keywords": [
     "typescript",
