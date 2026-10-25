@@ -29,6 +29,26 @@
     "./net": {
       "types": "./dist/net/index.d.ts",
       "import": "./dist/net/index.js"
+    },
+    "./html": {
+      "types": "./dist/html/index.d.ts",
+      "import": "./dist/html/index.js"
+    },
+    "./date": {
+      "types": "./dist/date/index.d.ts",
+      "import": "./dist/date/index.js"
+    },
+    "./i18n": {
+      "types": "./dist/i18n/index.d.ts",
+      "import": "./dist/i18n/index.js"
+    },
+    "./auth": {
+      "types": "./dist/auth/index.d.ts",
+      "import": "./dist/auth/index.js"
+    },
+    "./device": {
+      "types": "./dist/device/index.d.ts",
+      "import": "./dist/device/index.js"
     }
   },
   "files": [
@@ -47,7 +67,12 @@
     "cache",
     "protobuf",
     "spa",
-    "zip"
+    "zip",
+    "html",
+    "date",
+    "i18n",
+    "auth",
+    "device"
   ],
   "author": "Kristofer Tingdahl",
   "license": "ISC",

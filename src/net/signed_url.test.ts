@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { fetchSignedUrl, fetchSignedBinary, fetchSignedProto, fetchSignedJson } from './signed_url.js';
+import { fetchSignedUrl, fetchSignedBinary, fetchSignedProto, fetchSignedJson, uploadToSignedUrl, fetchSignedUrlData } from './signed_url.js';
 
 describe('signed_url generic helpers', () => {
   describe('fetchSignedUrl', () => {
@@ -149,6 +149,108 @@ describe('signed_url generic helpers', () => {
 
       const result = await fetchSignedJson('/api/json-url', { fetchFn: mockFetch as any });
       expect(result).toEqual(mockData);
+    });
+  });
+
+  describe('uploadToSignedUrl', () => {
+    it('uploads array buffer with content-type and returns response', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+      });
+
+      const data = new Uint8Array([1, 2, 3, 4]);
+      const resp = await uploadToSignedUrl('https://storage.cloud/upload', data, 'application/octet-stream', { fetchFn: mockFetch as any });
+      expect(resp.ok).toBe(true);
+      expect(mockFetch).toHaveBeenCalledWith('https://storage.cloud/upload', expect.objectContaining({
+        method: 'PUT',
+      }));
+    });
+
+    it('throws error when upload fails', async () => {
+      const mockFetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 403,
+        statusText: 'Forbidden',
+      });
+
+      const data = new Uint8Array([1, 2, 3]);
+      await expect(uploadToSignedUrl('https://storage.cloud/upload', data, undefined, { fetchFn: mockFetch as any }))
+        .rejects.toThrow('Direct upload to storage failed: Forbidden');
+    });
+  });
+
+  describe('fetchSignedUrlData', () => {
+    it('downloads binary data successfully via two-step fetch', async () => {
+      const payload = new TextEncoder().encode('Sample file content');
+      const mockFetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url === '/api/get-file') {
+          return new Response(JSON.stringify({ url: 'https://storage.cloud/file.bin' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (url === 'https://storage.cloud/file.bin') {
+          return new Response(payload, { status: 200 });
+        }
+        return new Response(null, { status: 404 });
+      });
+
+      global.fetch = mockFetch;
+      const buffer = await fetchSignedUrlData('/api/get-file');
+      expect(Array.from(new Uint8Array(buffer))).toEqual(Array.from(payload));
+    });
+
+    it('validates SHA-256 checksum when x-amz-checksum-sha256 is present', async () => {
+      const payload = new TextEncoder().encode('Checksum validated payload');
+      const hashBuffer = await crypto.subtle.digest('SHA-256', payload);
+      const hashBytes = new Uint8Array(hashBuffer);
+      let binary = '';
+      for (let i = 0; i < hashBytes.length; i++) {
+        binary += String.fromCharCode(hashBytes[i]);
+      }
+      const validSha256 = btoa(binary);
+
+      global.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url === '/api/get-file') {
+          return new Response(JSON.stringify({ url: 'https://storage.cloud/file.bin' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (url === 'https://storage.cloud/file.bin') {
+          return new Response(payload, {
+            status: 200,
+            headers: { 'x-amz-checksum-sha256': validSha256 },
+          });
+        }
+        return new Response(null, { status: 404 });
+      });
+
+      const buffer = await fetchSignedUrlData('/api/get-file');
+      expect(Array.from(new Uint8Array(buffer))).toEqual(Array.from(payload));
+    });
+
+    it('throws error when downloaded checksum mismatches', async () => {
+      const payload = new TextEncoder().encode('Tampered content');
+
+      global.fetch = vi.fn().mockImplementation(async (url: string) => {
+        if (url === '/api/get-file') {
+          return new Response(JSON.stringify({ url: 'https://storage.cloud/file.bin' }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+          });
+        }
+        if (url === 'https://storage.cloud/file.bin') {
+          return new Response(payload, {
+            status: 200,
+            headers: { 'x-amz-checksum-sha256': 'wrong-checksum==' },
+          });
+        }
+        return new Response(null, { status: 404 });
+      });
+
+      await expect(fetchSignedUrlData('/api/get-file')).rejects.toThrow(/checksum mismatch/);
     });
   });
 });

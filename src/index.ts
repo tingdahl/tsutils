@@ -3,3 +3,8 @@ export * from './proto/index.js';
 export * from './ui/index.js';
 export * from './zip/index.js';
 export * from './net/index.js';
+export * from './html/index.js';
+export * from './date/index.js';
+export * from './i18n/index.js';
+export * from './auth/index.js';
+export * from './device/index.js';
