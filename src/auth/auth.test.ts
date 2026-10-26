@@ -286,3 +286,65 @@ describe('SignInPanelHandler', () => {
     expect(errorBanner?.innerHTML).toContain('Account linking failed');
   });
 });
+
+describe("Invitations & InviteResult", () => {
+  beforeEach(() => {
+    localStorage.clear();
+    sessionStorage.clear();
+    delete (window as any).location;
+    window.location = new URL("http://localhost/") as any;
+  });
+
+  it("records invite outcome and strips params on successful authenticated redirect", () => {
+    const auth = new AuthManager();
+    const nonce = auth.getOrCreateLoginNonce();
+    const replaceSpy = vi.spyOn(window.history, "replaceState");
+    window.location = new URL(`http://localhost/console.html?login_nonce=${nonce}&invite_result=accepted&invite_tenant=1001#token=test-jwt`);
+
+    const ok = auth.checkUrlForToken();
+    expect(ok).toBe(true);
+    expect(auth.getAuthToken()).toBe("test-jwt");
+    expect(auth.consumeInviteResult()).toEqual({
+      result: "accepted",
+      targetId: "1001",
+      tenantId: "1001",
+    });
+    // Consuming a second time returns null
+    expect(auth.consumeInviteResult()).toBeNull();
+    // history.replaceState should be called with cleaned URL
+    expect(replaceSpy).toHaveBeenCalledWith({}, document.title, "http://localhost/console.html");
+  });
+
+  it("supports invite_target and invite_company aliases", () => {
+    const auth = new AuthManager();
+    const nonce = auth.getOrCreateLoginNonce();
+    window.location = new URL(`http://localhost/app?login_nonce=${nonce}&invite_result=accepted&invite_company=555#token=test-jwt`);
+
+    const ok = auth.checkUrlForToken();
+    expect(ok).toBe(true);
+    expect(auth.consumeInviteResult()).toEqual({
+      result: "accepted",
+      targetId: "555",
+      tenantId: "555",
+    });
+  });
+
+  it("ignores invite outcome when authentication fails or nonce mismatches (spoof protection)", () => {
+    const auth = new AuthManager();
+    window.location = new URL("http://localhost/app?login_nonce=attacker-nonce&invite_result=accepted&invite_target=999#token=attacker-jwt");
+
+    const ok = auth.checkUrlForToken();
+    expect(ok).toBe(false);
+    expect(auth.consumeInviteResult()).toBeNull();
+    expect(auth.getAuthToken()).toBeNull();
+  });
+
+  it("buildLoginReturnTo preserves invite param by default, but clears it when mode is empty string", () => {
+    window.location = new URL("http://localhost/console.html?invite=token-xyz");
+    const returnToDefault = buildLoginReturnTo();
+    expect(returnToDefault).toContain("invite=token-xyz");
+
+    const returnToExplicit = buildLoginReturnTo({ mode: "" });
+    expect(returnToExplicit).not.toContain("invite=");
+  });
+});

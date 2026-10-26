@@ -5,7 +5,10 @@ import {
   isTokenExpired,
   extractTokenFromUrl,
   buildLoginReturnTo,
+  getOrCreateLoginNonce,
+  type BuildLoginReturnToOptions,
   type AuthErrorDetails,
+  type InviteResult,
 } from './token.js';
 import type { AuthProviderPublic, OIDCConfig } from './icons.js';
 
@@ -35,6 +38,7 @@ export class AuthManager<TUser = unknown> {
   private sessionExpired: boolean = false;
   private lastAuthError: string | null = null;
   private lastAuthErrorDetails: AuthErrorDetails | null = null;
+  private lastInviteResult: InviteResult | null = null;
 
   constructor(options?: AuthManagerOptions<TUser>) {
     this.storageKey = options?.storageKey || DEFAULT_AUTH_STORAGE_KEY;
@@ -146,6 +150,15 @@ export class AuthManager<TUser = unknown> {
   }
 
   /**
+   * Returns and clears the invitation outcome delivered with the last sign-in, if any.
+   */
+  public consumeInviteResult(): InviteResult | null {
+    const result = this.lastInviteResult;
+    this.lastInviteResult = null;
+    return result;
+  }
+
+  /**
    * Extracts any authentication token (#token=...) or error returned from the OIDC redirect.
    * Cleans the URL via history.replaceState. Returns true if a token was received and stored.
    */
@@ -153,13 +166,16 @@ export class AuthManager<TUser = unknown> {
     const result = extractTokenFromUrl({ storageKey: this.storageKey });
     if (result.authError) {
       this.setLastAuthError(result.authError, result.errorDetails);
+      this.lastInviteResult = null;
       return false;
     }
     if (result.token) {
       this.sessionExpired = false;
       this.clearLastAuthError();
+      this.lastInviteResult = result.inviteResult;
       return true;
     }
+    this.lastInviteResult = null;
     return false;
   }
 
@@ -219,6 +235,23 @@ export class AuthManager<TUser = unknown> {
    * Helper to retrieve a numeric role for a tenant or company from the user's role mapping.
    * Checks both user.tenantRoles and user.companyRoles.
    */
+  /**
+   * Returns this tab's login nonce, creating one if needed.
+   */
+  public getOrCreateLoginNonce(): string {
+    return getOrCreateLoginNonce();
+  }
+
+  /**
+   * Builds the sanitized return_to URL carrying this tab's login nonce.
+   */
+  public buildLoginReturnTo(options?: string | BuildLoginReturnToOptions): string {
+    const opts: BuildLoginReturnToOptions = typeof options === "string"
+      ? { mode: options }
+      : (options || {});
+    return buildLoginReturnTo(opts);
+  }
+
   public getRole(tenantOrCompanyId: string | number): number | null {
     if (!this.user || typeof this.user !== 'object') return null;
     const u = this.user as Record<string, unknown>;
@@ -236,7 +269,7 @@ export class AuthManager<TUser = unknown> {
    * Builds the server login initiation URL for a given provider.
    */
   public buildLoginUrl(providerId: string, returnTo?: string): string {
-    const targetReturnTo = returnTo || buildLoginReturnTo();
+    const targetReturnTo = returnTo || this.buildLoginReturnTo();
     const cleanPrefix = this.loginPathPrefix;
     return `${cleanPrefix}/${encodeURIComponent(providerId)}/login?return_to=${encodeURIComponent(targetReturnTo)}`;
   }
@@ -268,6 +301,7 @@ export class AuthManager<TUser = unknown> {
     this.setAuthToken(null);
     this.user = null;
     this.sessionExpired = false;
+    this.lastInviteResult = null;
     if (this.onAuthChangedCallback) {
       this.onAuthChangedCallback(null);
     }
