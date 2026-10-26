@@ -8,3 +8,5 @@ export * from './date/index.js';
 export * from './i18n/index.js';
 export * from './auth/index.js';
 export * from './device/index.js';
+export * from './terms/index.js';
+export * from './tools/index.js';

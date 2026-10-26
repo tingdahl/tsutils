@@ -5,6 +5,9 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "bin": {
+    "tsutils-build-auth-config": "./bin/build-auth-config.mjs"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
@@ -49,10 +52,23 @@
     "./device": {
       "types": "./dist/device/index.d.ts",
       "import": "./dist/device/index.js"
+    },
+    "./terms": {
+      "types": "./dist/terms/index.d.ts",
+      "import": "./dist/terms/index.js"
+    },
+    "./legal": {
+      "types": "./dist/terms/index.d.ts",
+      "import": "./dist/terms/index.js"
+    },
+    "./tools": {
+      "types": "./dist/tools/index.d.ts",
+      "import": "./dist/tools/index.js"
     }
   },
   "files": [
-    "dist"
+    "dist",
+    "bin"
   ],
   "scripts": {
     "build": "tsc",
@@ -72,7 +88,10 @@
     "date",
     "i18n",
     "auth",
-    "device"
+    "device",
+    "terms",
+    "legal",
+    "tools"
   ],
   "author": "Kristofer Tingdahl",
   "license": "ISC",
